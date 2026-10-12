@@ -1,0 +1,5 @@
+# Qoder Sites 工具生成的描述文件（不需要入库）
+*.qoder.site
+
+# 本地预览服务 PID
+.preview-server.pid

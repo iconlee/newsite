@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="myframe8 运行状态：边缘函数与数据库实时探测" />
+  <title>运行状态 · myframe8</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">myframe8</a>
+      <nav class="links">
+        <a href="board.html">留言板</a>
+        <a href="status.html" aria-current="page">运行状态</a>
+        <a href="about.html">关于</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap">
+    <main>
+      <h1>运行状态</h1>
+      <p class="lead">每次打开页面或点击按钮，会实时请求一次站内边缘函数，并由函数侧检查数据库连通情况。</p>
+
+      <section class="card" style="margin-top:16px">
+        <table class="kv">
+          <tr><td>当前通道</td><td id="s-channel">—</td></tr>
+          <tr><td>边缘函数</td><td id="s-fn">—</td></tr>
+          <tr><td>数据库</td><td id="s-db">—</td></tr>
+          <tr><td>服务器时间</td><td id="s-time" class="mono">—</td></tr>
+          <tr><td>说明</td><td id="s-note">—</td></tr>
+        </table>
+        <button id="probe" class="btn" type="button" style="margin-top:14px">重新检测</button>
+      </section>
+
+      <footer>myframe8 · 2026 · 探测地址：/functions/v1/app?action=status</footer>
+    </main>
+  </div>
+  <script type="module">
+    import { requestJson, fmtTime } from "./app.js";
+
+    const channel = (() => {
+      const host = location.hostname;
+      if (host.endsWith("qoder.website")) return "Qoder Sites（完整能力：静态 + 函数 + 数据库）";
+      if (host.endsWith("github.io")) return "GitHub Pages 静态镜像（无后端）";
+      if (host === "127.0.0.1" || host === "localhost") return "本地预览（静态 + 函数代理）";
+      return host;
+    })();
+    document.getElementById("s-channel").textContent = channel;
+
+    const fnEl = document.getElementById("s-fn");
+    const dbEl = document.getElementById("s-db");
+    const timeEl = document.getElementById("s-time");
+    const noteEl = document.getElementById("s-note");
+    const btn = document.getElementById("probe");
+    const isMirror = location.hostname.endsWith("github.io");
+
+    async function probe() {
+      btn.disabled = true;
+      fnEl.textContent = dbEl.textContent = "检测中……";
+      fnEl.className = dbEl.className = "";
+      timeEl.textContent = "—";
+      noteEl.textContent = "—";
+      try {
+        const result = await requestJson("/functions/v1/app?action=status", {}, {
+          network_error: "网络请求未完成。",
+          invalid_response: "站点服务返回了异常响应。",
+        });
+        if (!result || result.ok !== true) throw new Error("返回结构不完整");
+        fnEl.textContent = "正常";
+        fnEl.className = "badge-ok";
+        dbEl.textContent = result.db === "ok" ? "正常" : "当前不可达";
+        dbEl.className = result.db === "ok" ? "badge-ok" : "badge-bad";
+        timeEl.textContent = fmtTime(result.time);
+        noteEl.textContent = result.db === "ok" ? "后端链路畅通。" : "函数在线，但数据库查询未成功。";
+      } catch (error) {
+        fnEl.textContent = "不可用";
+        fnEl.className = "badge-bad";
+        dbEl.textContent = "未检测";
+        dbEl.className = "";
+        noteEl.textContent = isMirror
+          ? "静态镜像没有后端函数——这正是两种发布通道的差别。"
+          : "后端能力未启用或暂不可用——开通后这里会显示实时状态。";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    btn.addEventListener("click", probe);
+    probe();
+  </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="myframe8 站点说明：结构、数据与两条发布通道" />
+  <title>关于 · myframe8</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">myframe8</a>
+      <nav class="links">
+        <a href="board.html">留言板</a>
+        <a href="status.html">运行状态</a>
+        <a href="about.html" aria-current="page">关于</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap">
+    <main>
+      <h1>关于本站</h1>
+      <p class="lead">一座用来演示 Qoder Sites 能力的小站：纯静态多页前端，加一个站内边缘函数和一处托管数据库。</p>
+
+      <h2>页面结构</h2>
+      <p>全站四个页面共用一份样式和脚本，无框架、无构建步骤：</p>
+      <ul class="checks">
+        <li><span>首页</span><span class="why">能力总览与入口</span></li>
+        <li><span>留言板</span><span class="why">函数的写入与读取演示</span></li>
+        <li><span>运行状态</span><span class="why">函数与数据库的实时探测</span></li>
+        <li><span>关于</span><span class="why">本页，结构与发布说明</span></li>
+      </ul>
+
+      <h2>数据说明</h2>
+      <p>留言板的留言保存在站点的托管数据库中，对所有访客公开可见；请把它当作公开留言墙，不要填写隐私信息。数据库只开放留言所需的读写范围，表结构通过平台审核过的迁移建立。</p>
+
+      <h2>两条发布通道</h2>
+      <p>同一份前端被发布到两个地方，能力并不相同：</p>
+      <ul class="checks">
+        <li><span>Qoder Sites</span><span class="why">完整能力：静态页面 + 边缘函数 + 数据库</span></li>
+        <li><span>GitHub Pages</span><span class="why">静态镜像：只有页面，没有后端（留言板会自动提示降级）</span></li>
+      </ul>
+      <p>在留言板页面提交一条留言，再到运行状态页点一次检测，就能直观看到两边的差别。</p>
+
+      <footer>myframe8 · 2026 · 静态前端 + 边缘函数 + 托管数据库</footer>
+    </main>
+  </div>
+</body>
+</html>

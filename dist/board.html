@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="myframe8 共享留言板：边缘函数 + 托管数据库演示" />
+  <title>留言板 · myframe8</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">myframe8</a>
+      <nav class="links">
+        <a href="board.html" aria-current="page">留言板</a>
+        <a href="status.html">运行状态</a>
+        <a href="about.html">关于</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap">
+    <main>
+      <h1>共享留言板</h1>
+      <p class="lead">留言保存在站点的托管数据库中，所有访客可见——请勿填写隐私信息。</p>
+
+      <div id="mirror-note" class="notice warn">当前访问的是 GitHub Pages 静态镜像：这份副本没有后端函数，留言功能停用。完整演示请访问 Qoder Sites 站点。</div>
+
+      <section class="card" style="margin-top:16px">
+        <div class="field">
+          <label for="f-name">昵称（可留空）</label>
+          <input id="f-name" type="text" maxlength="24" placeholder="怎么称呼你" />
+        </div>
+        <div class="field">
+          <label for="f-text">留言（1–300 字）</label>
+          <textarea id="f-text" maxlength="300" placeholder="写点什么……"></textarea>
+        </div>
+        <button id="f-submit" class="btn" type="button">发布留言</button>
+        <div id="form-msg" class="notice info"></div>
+      </section>
+
+      <h2>最近留言</h2>
+      <div id="list-state" class="list-state">正在加载……</div>
+      <div id="msg-list"></div>
+      <button id="load-more" class="btn ghost" type="button" style="display:none; margin-top:12px">加载更多</button>
+
+      <footer>myframe8 · 2026 · 数据来源：站点托管数据库</footer>
+    </main>
+  </div>
+  <script type="module">
+    import { requestJson, isWriteOutcomeUnknown, fmtTime } from "./app.js";
+
+    // 已知错误码 → 中文提示；不透出服务器原始信息
+    const MSG = {
+      network_error: "网络请求未完成，请稍后再试。",
+      invalid_response: "站点服务返回了异常响应。",
+      database_request_failed: "数据库暂时不可用，请稍后再试。",
+      database_runtime_unavailable: "站点后端暂时不可用。",
+      write_rejected: "服务器拒绝了这次写入，请调整内容后再试。",
+      write_result_unknown: "网络中断，无法确认留言是否已写入——列表已刷新，请核对后再决定是否重发。",
+      invalid_text: "留言内容需在 1–300 字之间。",
+      invalid_name: "昵称太长了（最多 24 字）。",
+      payload_too_large: "内容过大，请精简后再试。",
+      invalid_payload: "提交的数据格式不正确。",
+    };
+
+    const listEl = document.getElementById("msg-list");
+    const stateEl = document.getElementById("list-state");
+    const moreEl = document.getElementById("load-more");
+    const formMsg = document.getElementById("form-msg");
+    const nameEl = document.getElementById("f-name");
+    const textEl = document.getElementById("f-text");
+    const submitEl = document.getElementById("f-submit");
+    const mirrorEl = document.getElementById("mirror-note");
+
+    const isMirror = location.hostname.endsWith("github.io");
+    if (isMirror) mirrorEl.classList.add("show");
+
+    let offset = 0;
+
+    function showFormMsg(kind, text) {
+      formMsg.className = "notice " + kind + " show";
+      formMsg.textContent = text;
+    }
+
+    function renderItems(items) {
+      for (const item of items) {
+        const box = document.createElement("div");
+        box.className = "msg";
+        const text = document.createElement("p");
+        text.className = "msg-text";
+        text.textContent = item.text;          // 纯文本渲染，防注入
+        const meta = document.createElement("p");
+        meta.className = "meta";
+        const who = item.name && item.name.length > 0 ? item.name : "匿名";
+        meta.textContent = who + " · " + fmtTime(item.created_at);
+        box.append(text, meta);
+        listEl.append(box);
+      }
+    }
+
+    async function loadList(reset) {
+      if (reset) {
+        offset = 0;
+        listEl.replaceChildren();
+      }
+      stateEl.textContent = "正在加载……";
+      stateEl.style.display = "";
+      moreEl.style.display = "none";
+      try {
+        const result = await requestJson("/functions/v1/app?action=list&offset=" + offset, {}, MSG);
+        if (!result || typeof result !== "object" || !Array.isArray(result.items)) {
+          throw new Error("返回结构不完整");
+        }
+        renderItems(result.items);
+        if (result.hasMore === true && Number.isInteger(result.nextOffset)) offset = result.nextOffset;
+        const empty = listEl.childElementCount === 0;
+        stateEl.textContent = empty ? "还没有留言——来写第一条吧。" : "";
+        stateEl.style.display = empty ? "" : "none";
+        moreEl.style.display = result.hasMore === true ? "" : "none";
+      } catch (error) {
+        stateEl.textContent = isMirror
+          ? "静态镜像没有后端函数，无法读取留言。"
+          : "留言板后端当前不可用（未启用或暂时故障），无法读取留言。";
+        stateEl.style.display = "";
+      }
+    }
+
+    moreEl.addEventListener("click", () => loadList(false));
+
+    submitEl.addEventListener("click", async () => {
+      if (isMirror) {
+        showFormMsg("warn", "静态镜像没有后端函数，无法发布留言。");
+        return;
+      }
+      const name = nameEl.value.trim();
+      const text = textEl.value.trim();
+      if (text.length < 1) { showFormMsg("err", "留言内容不能为空。"); return; }
+      if (text.length > 300) { showFormMsg("err", "留言内容需在 1–300 字之间。"); return; }
+      submitEl.disabled = true;
+      showFormMsg("info", "正在提交……");
+      try {
+        const result = await requestJson("/functions/v1/app?action=post", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name, text }),
+        }, MSG);
+        if (!result || result.ok !== true) throw new Error("返回结构不完整");
+        textEl.value = "";
+        showFormMsg("ok", "已发布。");
+        await loadList(true);          // 写入成功后刷新权威列表
+      } catch (error) {
+        if (isWriteOutcomeUnknown(error)) {
+          showFormMsg("warn", MSG.write_result_unknown);
+          loadList(true);              // 结果未知：只刷新读取，绝不自动重发
+        } else {
+          showFormMsg("err", error && error.message ? error.message : "提交失败，请稍后再试。");
+        }
+      } finally {
+        submitEl.disabled = false;
+      }
+    });
+
+    loadList(true);
+  </script>
+</body>
+</html>
